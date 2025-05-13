@@ -10,9 +10,12 @@ type PageProps = {
 export default async function Page({ params }: PageProps) {
   const { rootId, nodeId } = await params;
 
+  const reqHeaders = await headers();
+  const cookie = reqHeaders.get("cookie") || "";
+
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/nodes/${rootId}/${nodeId}`,
-    { headers: await headers() },
+    { headers: { cookie } },
   );
 
   if (res.status === 404) {

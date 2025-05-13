@@ -22,9 +22,12 @@ export default async function Layout({
 }) {
   const { rootId } = await params;
 
+  const reqHeaders = await headers();
+  const cookie = reqHeaders.get("cookie") || "";
+
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/nodes/${rootId}`,
-    { headers: await headers() },
+    { headers: { cookie } },
   );
   const data: ParsedContentNode = await res.json();
 

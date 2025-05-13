@@ -19,6 +19,7 @@ export default async function Page() {
         <QueryForm />
         <div className="py-4" />
         <ContentNodeList />
+        {process.env.NEXT_PUBLIC_BASE_URL}
       </div>
     </div>
   );

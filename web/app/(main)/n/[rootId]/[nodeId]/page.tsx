@@ -11,10 +11,8 @@ export default async function Page({ params }: PageProps) {
   const { rootId, nodeId } = await params;
 
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_URL}/api/nodes/${rootId}/${nodeId}`,
-    {
-      headers: await headers(),
-    },
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/nodes/${rootId}/${nodeId}`,
+    { headers: await headers() },
   );
 
   if (res.status === 404) {

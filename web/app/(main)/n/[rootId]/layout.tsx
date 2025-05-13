@@ -24,9 +24,7 @@ export default async function Layout({
 
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/nodes/${rootId}`,
-    {
-      headers: await headers(),
-    },
+    { headers: await headers() },
   );
   const data: ParsedContentNode = await res.json();
 

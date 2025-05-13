@@ -22,14 +22,12 @@ export default async function Layout({
 }) {
   const { rootId } = await params;
 
-  const headersList = await headers();
-  const protocol = headersList.get("x-forwarded-proto") || "http";
-  const host = headersList.get("host");
-
-  const res = await fetch(`${protocol}://${host}/api/nodes/${rootId}`, {
-    headers: headersList,
-  });
-
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/nodes/${rootId}`,
+    {
+      headers: await headers(),
+    },
+  );
   const data: ParsedContentNode = await res.json();
 
   return (

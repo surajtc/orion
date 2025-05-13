@@ -10,14 +10,10 @@ type PageProps = {
 export default async function Page({ params }: PageProps) {
   const { rootId, nodeId } = await params;
 
-  const headersList = await headers();
-  const protocol = headersList.get("x-forwarded-proto") || "http";
-  const host = headersList.get("host");
-
   const res = await fetch(
-    `${protocol}://${host}/api/nodes/${rootId}/${nodeId}`,
+    `${process.env.NEXT_PUBLIC_URL}/api/nodes/${rootId}/${nodeId}`,
     {
-      headers: headersList,
+      headers: await headers(),
     },
   );
 

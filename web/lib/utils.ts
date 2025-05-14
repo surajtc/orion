@@ -6,8 +6,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export async function fetcher<T>(...args: [string]): Promise<T> {
-  const res = await fetch(...args);
+export async function fetcher<T>(
+  input: RequestInfo,
+  init?: RequestInit,
+): Promise<T> {
+  const res = await fetch(input, init);
+
+  if (!res.ok) {
+    const error = new Error(
+      "An error occurred while fetching the data.",
+    ) as Error & { status?: number };
+    error.status = res.status;
+    throw error;
+  }
+
   return res.json() as Promise<T>;
 }
 

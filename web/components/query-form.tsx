@@ -1,62 +1,143 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import { useChat } from "@ai-sdk/react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import type { ContentChild, ContentSource } from "@/lib/db/types";
+import {
+  MetadataSchema,
+  ParsedContentNodeSchema,
+  SourceSchema,
+  type ContentChild,
+  type ContentSource,
+  type ParsedContentNode,
+} from "@/lib/db/types";
 import Link from "next/link";
 import { Skeleton } from "./ui/skeleton";
 import { MagnifyingGlass, CircleNotch } from "@phosphor-icons/react/dist/ssr";
+import { useRouter } from "next/navigation";
+import { z } from "zod";
+
+type RootNode = {
+  id: string;
+  title: string;
+  type: "root" | "node";
+  metadata: string;
+  sources: string;
+  userId: string;
+};
 
 export function QueryForm() {
-  const { append, messages, isLoading, setMessages, data, error } = useChat({
-    api: "/api/gen/root",
-  });
-
+  const router = useRouter();
   const [query, setQuery] = useState("");
+
+  const { append, messages, isLoading, setMessages, data, error, setData } =
+    useChat({ api: "/api/gen/root" });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const trimmed = query.trim();
     if (!trimmed) return;
 
+    setData([]);
     setMessages([]);
     await append({ role: "user", content: trimmed });
     setQuery("");
   };
 
-  const { assistantMessage, toolCall } = useMemo(() => {
-    let assistantMessage = null;
-    let toolCall = null;
-
-    if (messages?.length) {
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const msg = messages[i];
-        if (msg.role !== "assistant" || !msg.parts) continue;
-
-        if (!assistantMessage && msg.parts.some((p) => p.type === "text")) {
-          assistantMessage = msg;
-        }
-
-        if (!toolCall) {
-          const part = msg.parts.find((p) => p.type === "tool-invocation");
-          if (part?.toolInvocation) {
-            toolCall = part.toolInvocation;
-          }
-        }
-
-        if (assistantMessage && toolCall) break;
-      }
-    }
-
-    return { assistantMessage, toolCall };
+  const assistantMessage = useMemo(() => {
+    return messages
+      .slice()
+      .reverse()
+      .find(
+        (m) =>
+          m.role === "assistant" && m.parts?.some((p) => p.type === "text"),
+      );
   }, [messages]);
 
-  const contentData = Array.isArray(data) ? (data as ContentChild[]) : [];
+  const toolCall = useMemo(() => {
+    return messages
+      .slice()
+      .reverse()
+      .flatMap((m) => m.parts || [])
+      .find((p) => p.type === "tool-invocation")?.toolInvocation;
+  }, [messages]);
+
+  const rootNode = useMemo((): RootNode | null => {
+    if (!Array.isArray(data)) return null;
+
+    return (
+      data.find(
+        (n): n is RootNode =>
+          typeof n === "object" &&
+          n !== null &&
+          "type" in n &&
+          n.type === "node",
+      ) ?? null
+    );
+  }, [data]);
+
+  const contentData = useMemo((): ContentChild[] => {
+    if (!Array.isArray(data)) return [];
+
+    return data.filter(
+      (n): n is ContentChild =>
+        typeof n === "object" &&
+        n !== null &&
+        "type" in n &&
+        n.type === "group",
+    );
+  }, [data]);
 
   const shouldShowOutput =
     isLoading || assistantMessage || toolCall || contentData.length > 0;
+
+  useEffect(() => {
+    const annotation = assistantMessage?.annotations?.[0];
+
+    const isNavigationAnnotation =
+      annotation &&
+      typeof annotation === "object" &&
+      "type" in annotation &&
+      annotation.type === "navigation" &&
+      "payload" in annotation &&
+      typeof (annotation as any).payload?.id === "string";
+
+    if (!isNavigationAnnotation) return;
+
+    const { id, childId } = (annotation as any).payload;
+    const url = `/n/${id}${childId ? `/${childId}` : ""}`;
+
+    if (rootNode) {
+      const now = new Date();
+      const parsedNode: ParsedContentNode = {
+        id: rootNode.id,
+        title: rootNode.title,
+        createdAt: now,
+        updatedAt: now,
+        markdown: null,
+        metadata: MetadataSchema.parse(JSON.parse(rootNode.metadata)),
+        sources: z.array(SourceSchema).parse(JSON.parse(rootNode.sources)),
+        path: rootNode.id,
+        type: rootNode.type,
+        userId: "",
+      };
+
+      console.log("ParsedNode", parsedNode);
+
+      try {
+        localStorage.clear();
+        localStorage.setItem(
+          `/api/nodes/${rootNode.id}`,
+          JSON.stringify(parsedNode),
+        );
+      } catch (err) {
+        console.warn("Failed to write to localStorage:", err);
+      }
+    }
+
+    router.push(url);
+  }, [assistantMessage, rootNode, router]);
 
   return (
     <div className="space-y-4">
@@ -64,7 +145,7 @@ export function QueryForm() {
         <Input
           type="text"
           placeholder="Enter your query..."
-          className="text-sm rounded-none border-r-transparent focus-visible:border-primary focus-visible:border-r-transparent focus-visible:ring-0 shadow-none resize-none dark:bg-transparent rounded-bl rounded-tl"
+          className="text-sm rounded-none border-r-0 focus-visible:border-primary focus-visible:ring-0 shadow-none resize-none dark:bg-transparent rounded-bl rounded-tl"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           disabled={isLoading}
@@ -91,11 +172,13 @@ export function QueryForm() {
           <div>
             {isLoading ? (
               <Skeleton className="h-4 w-48" />
-            ) : assistantMessage ? (
-              <p className="text-lg font-semibold tracking-tight">
-                {assistantMessage.content}
-              </p>
-            ) : null}
+            ) : (
+              assistantMessage?.content && (
+                <p className="text-lg font-semibold tracking-tight">
+                  {assistantMessage.content}
+                </p>
+              )
+            )}
           </div>
 
           <div className="space-y-1">
@@ -105,15 +188,15 @@ export function QueryForm() {
                 <Skeleton className="h-3 w-58 rounded" />
                 <Skeleton className="h-3 w-50 rounded" />
               </div>
-            ) : contentData.length > 0 ? (
-              <ul className="list-disc pl-4 space-y-1">
-                {contentData.map((d) => (
-                  <li key={d.id} className="text-sm">
+            ) : (
+              contentData
+                .filter((d) => d.type === "group")
+                .map((d) => (
+                  <li key={d.id} className="list-disc list-inside text-sm">
                     {d.title}
                   </li>
-                ))}
-              </ul>
-            ) : null}
+                ))
+            )}
           </div>
 
           <div className="flex flex-wrap gap-1.5 items-start pt-3">
@@ -131,11 +214,11 @@ export function QueryForm() {
                 </Link>
               ))
             ) : (
-              <>
+              <Fragment>
                 <Skeleton className="h-3.5 w-30 rounded" />
                 <Skeleton className="h-3.5 w-30 rounded" />
                 <Skeleton className="h-3.5 w-30 rounded" />
-              </>
+              </Fragment>
             )}
           </div>
         </div>

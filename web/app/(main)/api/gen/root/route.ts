@@ -94,10 +94,12 @@ export async function POST(req: Request) {
             dataStream.writeData(item);
           }
 
+          const id = generateSlug(text);
+
           if (userId) {
             try {
               await createContentNode({
-                id: generateSlug(text),
+                id,
                 title: text,
                 userId,
                 metadata: JSON.stringify({ children }),
@@ -107,7 +109,24 @@ export async function POST(req: Request) {
             } catch (err) {
               console.error("Failed to save content node:", err);
             }
+          } else {
+            dataStream.writeData({
+              id,
+              userId: "",
+              title: text,
+              metadata: JSON.stringify({ children }),
+              sources: JSON.stringify(sources),
+              type: "root",
+            });
           }
+
+          dataStream.writeMessageAnnotation({
+            type: "navigation",
+            payload: {
+              id,
+              childId: children[0]?.children?.[0]?.id ?? null,
+            },
+          });
         },
       });
 

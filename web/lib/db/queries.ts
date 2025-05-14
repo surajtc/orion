@@ -1,17 +1,22 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "./client";
 import { contentNode } from "./schema";
 import type { ContentNode } from "./types";
 
 export async function getRootContentNodesByUserId(
   userId: string,
+  count = 5,
+  offset = 0,
 ): Promise<ContentNode[]> {
   return await db
     .select()
     .from(contentNode)
-    .where(and(eq(contentNode.userId, userId), eq(contentNode.type, "root")));
+    .where(and(eq(contentNode.userId, userId), eq(contentNode.type, "root")))
+    .orderBy(desc(contentNode.updatedAt))
+    .limit(count)
+    .offset(offset);
 }
 
 export async function getContentNodeById(

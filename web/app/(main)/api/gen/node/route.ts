@@ -7,17 +7,12 @@ import { nodeContentPrompt } from "@/lib/ai/prompts";
 import { webSearch } from "@/lib/ai/tools";
 import { createOrUpdateContentNode } from "@/lib/db/queries";
 import type { ContentSource } from "@/lib/db/types";
-import { permanentRedirect, redirect } from "next/navigation";
 
 export async function POST(req: Request) {
   const session = await auth.api.getSession({
     headers: req.headers,
   });
   const userId = session?.user?.id;
-
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   const {
     messages,
@@ -62,19 +57,33 @@ export async function POST(req: Request) {
         },
         onFinish: async ({ finishReason, text }) => {
           if (finishReason === "stop" && text) {
-            try {
-              await createOrUpdateContentNode({
+            if (userId) {
+              try {
+                await createOrUpdateContentNode({
+                  id: nodeId,
+                  title: titleArray.at(-1) ?? "",
+                  markdown: text,
+                  userId,
+                  sources: JSON.stringify(sources),
+                  parentPath: rootId,
+                  metadata: JSON.stringify({ children: [] }),
+                });
+                console.log("Node created successfully");
+              } catch (err) {
+                console.error("Failed to create node:", err);
+              }
+            } else {
+              dataStream.writeData({
                 id: nodeId,
+                type: "node",
                 title: titleArray.at(-1) ?? "",
                 markdown: text,
-                userId,
                 sources: JSON.stringify(sources),
                 parentPath: rootId,
                 metadata: JSON.stringify({ children: [] }),
+                userId: "",
               });
-              console.log("Node created successfully");
-            } catch (err) {
-              console.error("Failed to create node:", err);
+              console.log("Skipping DB write — guest mode");
             }
           }
         },

@@ -7,7 +7,7 @@ A semantic answer engine that generates interactive, markdown-style answer maps 
 ![Next.js](https://img.shields.io/badge/Next.js-15.3.2-black.svg)
 ![React](https://img.shields.io/badge/React-19.0.0-blue.svg)
 
-<video src="docs/orion.webm" controls></video>
+![Demo](docs/orion.gif)
 
 ## Features
 

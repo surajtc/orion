@@ -21,6 +21,11 @@ A semantic answer engine that generates interactive, markdown-style answer maps 
 - **Real-time Updates**: Live content generation with streaming responses
 - **Persistent Storage**: SQLite database with Drizzle ORM for data persistence
 
+## Screenshots
+
+![Home Page](docs/sceenshot-home.png)
+![Markdown View](docs/screenshot-md.png)
+
 ## Tech Stack
 
 Next.js, Tailwind CSS, Shadcn/ui, Vercel AI SDK, OpenAI, SQLite, Drizzle ORM
@@ -73,11 +78,6 @@ pnpm db:migrate  # Run migrations
 - `POST /api/gen/node` - Generate node
 - `GET /api/nodes/[...path]` - Get nodes
 - `POST /api/nodes` - Create node
-
-## Screenshots
-
-![Home Page](docs/sceenshot-home.png)
-![Markdown View](docs/screenshot-md.png)
 
 ## License
 
